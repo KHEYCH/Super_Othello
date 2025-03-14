@@ -14,7 +14,7 @@
       min-height: 100vh;
       background: linear-gradient(135deg, #1e1e2f, #2a2a3d);
       color: #f5f5f5;
-      overflow-y: auto; /* スマホでスクロール可能に */
+      overflow-y: auto;
     }
     .game-wrapper {
       display: flex;
@@ -184,7 +184,7 @@
       justify-content: center;
       align-items: center;
       backdrop-filter: blur(5px);
-      overflow-y: auto; /* モーダル外もスクロール可能に */
+      overflow-y: auto;
     }
     .special-move-modal { background: rgba(0,0,0,0.8); z-index: 9999; backdrop-filter: blur(10px); }
     .special-move-modal.active { display: flex !important; }
@@ -192,11 +192,11 @@
       background: rgba(40,40,50,0.95);
       border-radius: 20px; padding: 20px;
       max-width: 600px; width: 90%;
-      max-height: 80vh; /* スマホ画面の高さに制限 */
+      max-height: 80vh;
       text-align: center;
       box-shadow: 0 20px 50px rgba(0,0,0,0.5);
       position: relative;
-      overflow-y: auto; /* モーダル内スクロール */
+      overflow-y: auto;
       animation: modalShow 0.3s ease;
     }
     @keyframes modalShow { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -274,13 +274,20 @@
     .winner-banner.white { background: rgba(255,255,255,0.2); }
     .winner-banner.draw { background: rgba(128,128,128,0.2); }
     .result-buttons { display: flex; justify-content: center; gap: 15px; margin-top: 30px; }
+    .controls { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; }
     .controls button {
-      padding: 10px 20px; margin: 5px;
+      padding: 10px 20px;
       background: linear-gradient(135deg, #ff6b6b, #ff8e53);
       border: none; border-radius: 20px; color: white;
       cursor: pointer; transition: all 0.3s ease;
     }
     .controls button:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+    .controls button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
     .thinking { display: none; text-align: center; margin-top: 10px; color: #ddd; }
   </style>
 </head>
@@ -443,7 +450,7 @@
         <button id="reset-btn"><span>リセット</span></button>
         <button id="undo-btn"><span>元に戻す</span></button>
         <button id="hint-btn"><span>ヒント</span></button>
-        <button id="skip-btn" style="display: none;"><span>パス</span></button>
+        <button id="skip-btn"><span>スキップ</span></button>
       </div>
     </div>
     <div class="game-info">
@@ -832,6 +839,7 @@
         }
         validMovesCache = getValidMoves(gameState.currentPlayer);
         if (gameState.showHints) showHints();
+        updateSkipButtonState();
       }
 
       function updateGameStatus() {
@@ -930,7 +938,11 @@
             cell.appendChild(hint);
           }
         }
-        skipBtn.style.display = validMoves.length === 0 ? 'flex' : 'none';
+      }
+
+      function updateSkipButtonState() {
+        const validMoves = getValidMoves(gameState.currentPlayer);
+        skipBtn.disabled = validMoves.length > 0 || gameState.isGameOver || gameState.isComputerThinking || gameState.isProcessingMove;
       }
 
       function handleSkip() {
@@ -951,6 +963,9 @@
           } else {
             endGame();
           }
+        } else {
+          status.textContent = `${gameState.currentPlayer === 1 ? '黒' : '白'}はまだ打てる手があります`;
+          setTimeout(() => updateGameStatus(), 1000);
         }
       }
 
@@ -1104,7 +1119,7 @@
             updateSpecialCooldown(player, 2);
             updateGameStatus();
             showHints();
-            gameState.isSpecialMoveActive = false; // 連鎖技は即座に終了
+            gameState.isSpecialMoveActive = false;
             break;
         }
         return true;
@@ -1404,133 +1419,133 @@
             placeDiscOnBoard(boardCopy, move.row, move.col, player);
             const score = minimax(boardCopy, depth - 1, alpha, beta, true, opponent);
             minScore = Math.min(minScore, score);
-            beta = Math.min(beta, score);
-            if (beta <= alpha) break;
-          }
-          return minScore;
+                      beta = Math.min(beta, score);
+          if (beta <= alpha) break;
         }
+        return minScore;
       }
+    }
 
-            function getValidMovesForBoard(board, player) {
-        const validMoves = [];
-        for (let row = 0; row < 8; row++) {
-          for (let col = 0; col < 8; col++) {
-            if (board[row][col] === 0) {
-              const flippedDiscs = getFlippedDiscs(board, row, col, player);
-              if (flippedDiscs.length > 0) validMoves.push({ row, col, flips: flippedDiscs.length });
-            }
-          }
-        }
-        return validMoves;
-      }
-
-      function placeDiscOnBoard(board, row, col, player) {
-        const flippedDiscs = getFlippedDiscs(board, row, col, player);
-        if (flippedDiscs.length > 0) {
-          board[row][col] = player;
-          for (const disc of flippedDiscs) board[disc.row][disc.col] = player;
-        }
-        return flippedDiscs;
-      }
-
-      function evaluateBoard(board, player) {
-        let score = 0;
-        for (let row = 0; row < 8; row++) {
-          for (let col = 0; col < 8; col++) {
-            if (board[row][col] === player) score += evaluationBoard[row][col];
-            else if (board[row][col] === (player === 1 ? 2 : 1)) score -= evaluationBoard[row][col];
+    function getValidMovesForBoard(board, player) {
+      const validMoves = [];
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          if (board[row][col] === 0) {
+            const flippedDiscs = getFlippedDiscs(board, row, col, player);
+            if (flippedDiscs.length > 0) validMoves.push({ row, col, flips: flippedDiscs.length });
           }
         }
-        return score;
       }
+      return validMoves;
+    }
 
-      function finalEvaluation(board, player) {
-        const counts = countDiscs(board);
-        return player === 1 ? counts.black - counts.white : counts.white - counts.black;
+    function placeDiscOnBoard(board, row, col, player) {
+      const flippedDiscs = getFlippedDiscs(board, row, col, player);
+      if (flippedDiscs.length > 0) {
+        board[row][col] = player;
+        for (const disc of flippedDiscs) board[disc.row][disc.col] = player;
       }
+      return flippedDiscs;
+    }
 
-      // セルクリック処理
-      function handleCellClick(row, col) {
-        if (gameState.isComputerThinking || gameState.isGameOver || gameState.isProcessingMove || gameState.isSelectingSpecialTarget) return;
-        if (gameState.gameMode === 'player-vs-computer' && gameState.currentPlayer === gameState.computerPlayer) return;
-        const validMoves = getValidMoves(gameState.currentPlayer);
-        validMovesCache = validMoves;
-        const selectedMove = validMoves.find(move => move.row === row && move.col === col);
-        if (!selectedMove) return;
-        gameState.isProcessingMove = true;
-        sounds.place.play();
-        saveGameState();
-        placeDisc(row, col);
-        addMoveToHistory(row, col);
-        gameState.lastMove = { row, col };
-        
-        if (gameState.chainMoveActive) {
-          gameState.chainMoveCount--;
-          if (gameState.chainMoveCount <= 0) {
-            gameState.chainMoveActive = false;
-            gameState.chainMoveCount = 0;
-            finishTurn();
-            switchPlayer();
-          } else {
-            updateGameStatus();
-            updateBoard();
-          }
-        } else {
+    function evaluateBoard(board, player) {
+      let score = 0;
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          if (board[row][col] === player) score += evaluationBoard[row][col];
+          else if (board[row][col] === (player === 1 ? 2 : 1)) score -= evaluationBoard[row][col];
+        }
+      }
+      return score;
+    }
+
+    function finalEvaluation(board, player) {
+      const counts = countDiscs(board);
+      return player === 1 ? counts.black - counts.white : counts.white - counts.black;
+    }
+
+    // セルクリック処理
+    function handleCellClick(row, col) {
+      if (gameState.isComputerThinking || gameState.isGameOver || gameState.isProcessingMove || gameState.isSelectingSpecialTarget) return;
+      if (gameState.gameMode === 'player-vs-computer' && gameState.currentPlayer === gameState.computerPlayer) return;
+      const validMoves = getValidMoves(gameState.currentPlayer);
+      validMovesCache = validMoves;
+      const selectedMove = validMoves.find(move => move.row === row && move.col === col);
+      if (!selectedMove) return;
+      gameState.isProcessingMove = true;
+      sounds.place.play();
+      saveGameState();
+      placeDisc(row, col);
+      addMoveToHistory(row, col);
+      gameState.lastMove = { row, col };
+      
+      if (gameState.chainMoveActive) {
+        gameState.chainMoveCount--;
+        if (gameState.chainMoveCount <= 0) {
+          gameState.chainMoveActive = false;
+          gameState.chainMoveCount = 0;
           finishTurn();
           switchPlayer();
+        } else {
+          updateGameStatus();
+          updateBoard();
         }
-        updateBoard();
-        setTimeout(() => { gameState.isProcessingMove = false; }, 600);
+      } else {
+        finishTurn();
+        switchPlayer();
       }
+      updateBoard();
+      setTimeout(() => { gameState.isProcessingMove = false; }, 600);
+    }
 
-      // 難易度変更
-      function changeDifficulty(level) {
-        gameState.difficulty = level;
-        difficultyBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.level === level));
-      }
+    // 難易度変更
+    function changeDifficulty(level) {
+      gameState.difficulty = level;
+      difficultyBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.level === level));
+    }
 
-      // イベントリスナー設定
-      blackSpecialBtn.addEventListener('click', function() {
-        if (gameState.currentPlayer !== 1 || gameState.specialGauges[1] < 100 || gameState.specialCooldowns[1] > 0 || gameState.isProcessingMove || gameState.isComputerThinking) return;
-        useSpecialMove(1);
-      });
-
-      whiteSpecialBtn.addEventListener('click', function() {
-        if (gameState.gameMode !== 'player-vs-player' || gameState.currentPlayer !== 2 || gameState.specialGauges[2] < 100 || gameState.specialCooldowns[2] > 0 || gameState.isProcessingMove) return;
-        useSpecialMove(2);
-      });
-
-      resetBtn.addEventListener('click', resetGame);
-      undoBtn.addEventListener('click', undoMove);
-      hintBtn.addEventListener('click', toggleHints);
-      skipBtn.addEventListener('click', handleSkip);
-      closeModal.addEventListener('click', () => resultModal.style.display = 'none');
-      newGameBtn.addEventListener('click', resetGame);
-      playAgainBtn.addEventListener('click', resetGame);
-      difficultyBtns.forEach(btn => btn.addEventListener('click', () => changeDifficulty(btn.dataset.level)));
-      window.addEventListener('click', (e) => { if (e.target === resultModal) resultModal.style.display = 'none'; });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && gameState.isSelectingSpecialTarget) cancelTargetSelection();
-      });
-
-      // ターゲット選択のキャンセル
-      function cancelTargetSelection() {
-        gameState.isSelectingSpecialTarget = false;
-        gameState.isSpecialMoveActive = false;
-        const targetCells = document.querySelectorAll('.seal-target, .reversal-target');
-        targetCells.forEach(cell => {
-          cell.classList.remove('seal-target', 'reversal-target');
-          cell.removeEventListener('click', handleSealTarget);
-          cell.removeEventListener('click', handleReversalTarget);
-        });
-        status.textContent = `${gameState.currentPlayer === 1 ? '黒' : '白'}の番です`;
-        updateBoard();
-      }
-
-      // 初期化
-      showGameModeModal();
-      renderBoard();
+    // イベントリスナー設定
+    blackSpecialBtn.addEventListener('click', function() {
+      if (gameState.currentPlayer !== 1 || gameState.specialGauges[1] < 100 || gameState.specialCooldowns[1] > 0 || gameState.isProcessingMove || gameState.isComputerThinking) return;
+      useSpecialMove(1);
     });
-  </script>
+
+    whiteSpecialBtn.addEventListener('click', function() {
+      if (gameState.gameMode !== 'player-vs-player' || gameState.currentPlayer !== 2 || gameState.specialGauges[2] < 100 || gameState.specialCooldowns[2] > 0 || gameState.isProcessingMove) return;
+      useSpecialMove(2);
+    });
+
+    resetBtn.addEventListener('click', resetGame);
+    undoBtn.addEventListener('click', undoMove);
+    hintBtn.addEventListener('click', toggleHints);
+    skipBtn.addEventListener('click', handleSkip);
+    closeModal.addEventListener('click', () => resultModal.style.display = 'none');
+    newGameBtn.addEventListener('click', resetGame);
+    playAgainBtn.addEventListener('click', resetGame);
+    difficultyBtns.forEach(btn => btn.addEventListener('click', () => changeDifficulty(btn.dataset.level)));
+    window.addEventListener('click', (e) => { if (e.target === resultModal) resultModal.style.display = 'none'; });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && gameState.isSelectingSpecialTarget) cancelTargetSelection();
+    });
+
+    // ターゲット選択のキャンセル
+    function cancelTargetSelection() {
+      gameState.isSelectingSpecialTarget = false;
+      gameState.isSpecialMoveActive = false;
+      const targetCells = document.querySelectorAll('.seal-target, .reversal-target');
+      targetCells.forEach(cell => {
+        cell.classList.remove('seal-target', 'reversal-target');
+        cell.removeEventListener('click', handleSealTarget);
+        cell.removeEventListener('click', handleReversalTarget);
+      });
+      status.textContent = `${gameState.currentPlayer === 1 ? '黒' : '白'}の番です`;
+      updateBoard();
+    }
+
+    // 初期化
+    showGameModeModal();
+    renderBoard();
+  });
+</script>
 </body>
 </html>
