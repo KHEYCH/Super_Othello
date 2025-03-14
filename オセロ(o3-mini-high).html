@@ -14,7 +14,7 @@
       min-height: 100vh;
       background: linear-gradient(135deg, #1e1e2f, #2a2a3d);
       color: #f5f5f5;
-      transition: background 0.5s ease;
+      overflow-y: auto; /* スマホでスクロール可能に */
     }
     .game-wrapper {
       display: flex;
@@ -184,16 +184,19 @@
       justify-content: center;
       align-items: center;
       backdrop-filter: blur(5px);
+      overflow-y: auto; /* モーダル外もスクロール可能に */
     }
     .special-move-modal { background: rgba(0,0,0,0.8); z-index: 9999; backdrop-filter: blur(10px); }
     .special-move-modal.active { display: flex !important; }
     .modal-content, .special-move-modal-content {
       background: rgba(40,40,50,0.95);
-      border-radius: 20px; padding: 35px;
+      border-radius: 20px; padding: 20px;
       max-width: 600px; width: 90%;
+      max-height: 80vh; /* スマホ画面の高さに制限 */
       text-align: center;
       box-shadow: 0 20px 50px rgba(0,0,0,0.5);
       position: relative;
+      overflow-y: auto; /* モーダル内スクロール */
       animation: modalShow 0.3s ease;
     }
     @keyframes modalShow { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
@@ -203,25 +206,26 @@
       transition: color 0.3s;
     }
     .close-modal:hover { color: #fff; }
-    .special-move-title, .result-title { font-size: 24px; margin-bottom: 20px; color: #f5f5f5; }
-    .special-move-desc { font-size: 16px; margin-bottom: 30px; color: #ddd; }
-    .special-move-options { display: flex; justify-content: center; flex-wrap: wrap; gap: 20px; margin-bottom: 30px; }
+    .special-move-title, .result-title { font-size: 24px; margin-bottom: 15px; color: #f5f5f5; }
+    .special-move-desc { font-size: 16px; margin-bottom: 20px; color: #ddd; }
+    .special-move-options { display: flex; justify-content: center; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
     .special-move-option {
       background: rgba(60,60,70,0.8);
-      border-radius: 15px; padding: 25px; width: 180px;
+      border-radius: 15px; padding: 15px; width: 160px;
       cursor: pointer; transition: all 0.3s ease;
       border: 2px solid transparent;
     }
     .special-move-option:hover { transform: translateY(-8px); box-shadow: 0 15px 25px rgba(0,0,0,0.4); }
     .special-move-option.selected { border-color: #ff8e53; background: rgba(90,90,100,0.8); }
-    .special-move-icon { font-size: 40px; margin-bottom: 10px; }
-    .special-move-option-name { font-size: 18px; font-weight: bold; margin-bottom: 10px; color: #f5f5f5; }
-    .special-move-option-desc { font-size: 14px; color: #bbb; }
+    .special-move-icon { font-size: 36px; margin-bottom: 8px; }
+    .special-move-option-name { font-size: 16px; font-weight: bold; margin-bottom: 8px; color: #f5f5f5; }
+    .special-move-option-desc { font-size: 12px; color: #bbb; }
     .special-move-select-btn {
       background: linear-gradient(135deg, #ff6b6b, #ff8e53);
-      color: white; border: none; padding: 12px 24px;
-      border-radius: 30px; font-size: 18px; font-weight: bold;
+      color: white; border: none; padding: 10px 20px;
+      border-radius: 25px; font-size: 16px; font-weight: bold;
       cursor: pointer; transition: all 0.3s ease;
+      margin-top: 10px;
     }
     .special-move-select-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 12px rgba(0,0,0,0.3); }
     .animation-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; overflow: hidden; }
@@ -542,7 +546,7 @@
         isSpecialMoveActive: false,
         specialMoveType: null,
         chainMoveActive: false,
-        chainMoveCount: 0, // 連鎖技の残り手数を管理
+        chainMoveCount: 0,
         sealedAreas: []
       };
       let validMovesCache = null;
@@ -1083,39 +1087,34 @@
           case 'seal':
             status.textContent = `${player === 1 ? '黒' : '白'}の封印技: 3×3エリアを選択（2ターン有効）`;
             gameState.isSelectingSpecialTarget = true;
+            highlightSealRange(player);
             showSealTargets(player);
-            highlightSealRange(player); // 範囲の事前表示
             break;
           case 'reversal':
             status.textContent = `${player === 1 ? '黒' : '白'}の反転技: 相手の駒を選択`;
             gameState.isSelectingSpecialTarget = true;
+            highlightReversalTargets(player);
             showReversalTargets(player);
-            highlightReversalTargets(player); // 対象の事前表示
             break;
           case 'chain':
             status.textContent = `${player === 1 ? '黒' : '白'}の連鎖技: 続けて2手打てます`;
             gameState.chainMoveActive = true;
-            gameState.chainMoveCount = 2; // 2手分設定
+            gameState.chainMoveCount = 2;
             updateSpecialGauge(player, 0);
             updateSpecialCooldown(player, 2);
             updateGameStatus();
-            showHints(); // 即座に有効手を表示
-            setTimeout(() => {
-              gameState.isSpecialMoveActive = false;
-            }, 1500);
+            showHints();
+            gameState.isSpecialMoveActive = false; // 連鎖技は即座に終了
             break;
         }
         return true;
       }
 
       function highlightSealRange(player) {
-        // すべてのマスに選択可能な範囲を示す（実際の適用はクリック時）
         for (let row = 0; row < 8; row++) {
           for (let col = 0; col < 8; col++) {
             const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-            if (cell) {
-              cell.classList.add('seal-target');
-            }
+            if (cell) cell.classList.add('seal-target');
           }
         }
       }
@@ -1124,9 +1123,7 @@
         for (let row = 0; row < 8; row++) {
           for (let col = 0; col < 8; col++) {
             const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-            if (cell) {
-              cell.addEventListener('click', handleSealTarget);
-            }
+            if (cell) cell.addEventListener('click', handleSealTarget);
           }
         }
       }
@@ -1154,7 +1151,7 @@
         for (let r = centerRow - 1; r <= centerRow + 1; r++) {
           for (let c = centerCol - 1; c <= centerCol + 1; c++) {
             if (r >= 0 && r < 8 && c >= 0 && c < 8) {
-              gameState.sealedAreas.push({ row: r, col: c, player, turnsRemaining: 2 }); // 2ターン持続
+              gameState.sealedAreas.push({ row: r, col: c, player, turnsRemaining: 2 });
             }
           }
         }
@@ -1166,9 +1163,7 @@
           for (let col = 0; col < 8; col++) {
             if (gameState.board[row][col] === opponent) {
               const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-              if (cell) {
-                cell.classList.add('reversal-target');
-              }
+              if (cell) cell.classList.add('reversal-target');
             }
           }
         }
@@ -1180,9 +1175,7 @@
           for (let col = 0; col < 8; col++) {
             if (gameState.board[row][col] === opponent) {
               const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
-              if (cell) {
-                cell.addEventListener('click', handleReversalTarget);
-              }
+              if (cell) cell.addEventListener('click', handleReversalTarget);
             }
           }
         }
@@ -1384,7 +1377,7 @@
         return bestMove;
       }
 
-            function minimax(board, depth, alpha, beta, isMaximizing, player) {
+      function minimax(board, depth, alpha, beta, isMaximizing, player) {
         if (depth === 0) return evaluateBoard(board, gameState.computerPlayer);
         const opponent = player === 1 ? 2 : 1;
         const validMoves = getValidMovesForBoard(board, player);
@@ -1418,7 +1411,7 @@
         }
       }
 
-      function getValidMovesForBoard(board, player) {
+            function getValidMovesForBoard(board, player) {
         const validMoves = [];
         for (let row = 0; row < 8; row++) {
           for (let col = 0; col < 8; col++) {
